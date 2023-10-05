@@ -14,7 +14,6 @@ export class RefreshTokenMiddleware implements NestMiddleware {
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
-    // console.log("Refresh Token middleware called");
     const authorizationHeader = req.headers.authorization;
     if (!authorizationHeader) {
       res
@@ -22,26 +21,21 @@ export class RefreshTokenMiddleware implements NestMiddleware {
         .json({ message: "Middleware bypassed : missing AuthorizationHeader" });
     }
 
-    // console.log(authorizationHeader);
     if (authorizationHeader && authorizationHeader.startsWith("Bearer ")) {
       const tokens = authorizationHeader.substring(7).split(",");
       const accessToken = tokens[0].trim();
       const refreshToken = tokens[1].trim();
 
-      // console.log(refreshToken);
       if (refreshToken !== "null") {
         try {
           const decodedToken = jwt.decode(accessToken) as JwtPayload;
           try {
             const rtUser = await this.rtStrategy.validate(req, decodedToken);
           } catch {
-            //console.log("error: refresh token has expired");
             return null;
           }
           if (decodedToken && this.atStrategy.validate(decodedToken)) {
-            //console.log("Access Token is valid");
           } else {
-            //console.log("Access Token has expired");
             const userId: number = parseInt(decodedToken.sub, 10);
             const newAccessToken = await this.authService.refreshTokens(
               userId,
@@ -52,16 +46,12 @@ export class RefreshTokenMiddleware implements NestMiddleware {
               newAccessToken.refresh_token,
             ].join(", ")}`;
 
-            // Mise à jour de l'access token dans le header de la requête
             req.headers.authorization = newAuthorizationHeader;
-            //console.log("New Access Token:", newAccessToken);
           }
         } catch (error) {
           console.log("Error occurred while regenerating Access Token:", error);
         }
       } else {
-        // means that the user is connected via 42 API : we don't want to do anything.
-        //console.log("API 42 Refresh Midleware");
       }
       next();
     }

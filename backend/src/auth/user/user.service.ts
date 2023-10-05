@@ -80,32 +80,15 @@ export class UserService {
     try {
       const user = await this.prisma.user.findUnique({
         where: {
-          id:  Number(id)// Remplacez 1 par l'ID que vous souhaitez rechercher
-        }
+          id: Number(id), // Remplacez 1 par l'ID que vous souhaitez rechercher
+        },
       });
-      if (user)
-        return user;
-      else
-        return null;
-  } catch (error) {
-    return null;
+      if (user) return user;
+      else return null;
+    } catch (error) {
+      return null;
+    }
   }
-  }
-
-  //---------- Friends -------------//
-  // async getFriends(userId: number) {
-  //   const userFriends = await this.prisma.friends.findMany({
-  //     where: {
-  //       userId: userId,
-  //     },
-  //     include: {
-  //       User: true,
-  //     },
-  //   });
-  //   const friendIds = userFriends.map((friend) => friend.friendId);
-  //   console.log(friendIds);
-  //   return friendIds;
-  // }
 
   async getNonFriends(userId: number) {
     // Get the IDs of the user's friends
@@ -118,10 +101,8 @@ export class UserService {
       },
     });
 
-    // Extract friendIds from userFriends
     const friendIds = userFriends.map((friend) => friend.friendId);
 
-    // Find all users who are not in the friendIds array
     const nonFriends = await this.prisma.user.findMany({
       where: {
         NOT: {
@@ -136,7 +117,6 @@ export class UserService {
   }
 
   async getFriends(userId: number) {
-    // Get the IDs of the user's friends
     const userFriends = await this.prisma.friends.findMany({
       where: {
         userId: userId,
@@ -146,10 +126,8 @@ export class UserService {
       },
     });
 
-    // Extract friendIds from userFriends
     const friendIds = userFriends.map((friend) => friend.friendId);
 
-    // Find all users who are not in the friendIds array
     const friends = await this.prisma.user.findMany({
       where: {
         id: {
@@ -191,7 +169,6 @@ export class UserService {
         throw new Error("Friend does not exist.");
       }
       const friendUsername = friend.username;
-      //console.log(friendUsername);
       return true;
     } catch (error) {
       throw new Error("Erreur lors de l'ajout d'ami : " + error.message);
@@ -225,7 +202,6 @@ export class UserService {
     }
   }
 
-  //--- Utils
   async getUsersSortedByScore(): Promise<User[]> {
     const usersSortedByScore = await this.prisma.user.findMany({
       orderBy: {

@@ -7,14 +7,12 @@ import {
 import * as argon from "argon2";
 import * as jwt from "jsonwebtoken";
 import axios from "axios";
-import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { signupDto, SigninDto } from "./dto";
 import { Tokens, JwtPayload, signinResponse } from "./types";
 import { AtStrategy } from "./strategies";
 import { JwtService } from "@nestjs/jwt";
 import { User } from "@prisma/client";
-import { first } from "rxjs";
 
 @Injectable()
 export class AuthService {
@@ -113,15 +111,14 @@ export class AuthService {
       },
       is2FA: twoFA,
     };
-    //console.log(response);
     return response;
   }
+
   /*----------------------------------------------
     Authentication 2FA
   ----------------------------------------------- */
   async activate2FA(user: User): Promise<boolean> {
-    if (String(user) === null)
-      return false;
+    if (String(user) === null) return false;
     if (user.IstwoFactorAuth == true) {
       await this.prisma.user.update({
         where: {
@@ -162,9 +159,7 @@ export class AuthService {
       }
 
       const secret = user.userSecret;
-      // console.log(secret);
-      // console.log(validationCode);
-      const speakeasy = require("speakeasy"); // Importez la bibliothèque de manière synchrone
+      const speakeasy = require("speakeasy");
 
       const isValidCode = speakeasy.totp.verify({
         secret: secret,
@@ -172,7 +167,6 @@ export class AuthService {
         token: validationCode,
       });
 
-      //console.log("CODE -----> ", isValidCode);
       if (isValidCode) {
         await this.prisma.user.update({
           where: {
@@ -232,39 +226,6 @@ export class AuthService {
     });
   }
 
-  /*   async validate2FACode(
-    userId: number,
-    validationCode: string
-  ): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-    });
-
-    if (!user) {
-      throw new Error("User Does Not Exist");
-    }
-
-    const secret = user.userSecret;
-
-    import("speakeasy").then((speakeasy) => {
-      const isValidCode = speakeasy.totp.verify({
-        secret: secret,
-        encoding: "base32",
-        token: validationCode,
-      });
-
-      if (isValidCode) {
-        return true;
-      } else {
-        throw new Error("Validation code is incorrect");
-      }
-    });
-    return false;
-  }
- */
-
   async generate2FAsecret(userId: number): Promise<string> {
     const user = await this.prisma.user.findUnique({
       where: {
@@ -274,11 +235,9 @@ export class AuthService {
     const speakeasy = require("speakeasy");
     const qrcode = require("qrcode");
 
-    // if (!user.userSecret) {
     const tempSecret = speakeasy.generateSecret({
       name: process.env.SPEAKEASY_SECRET,
     });
-    // console.log(secret.base32);
     await this.prisma.user.update({
       where: {
         id: userId,
@@ -292,99 +251,13 @@ export class AuthService {
         if (err) {
           reject(err);
         } else {
-          resolve(data); // Resolve with the data URL
+          resolve(data);
         }
       });
     });
     return qrCodeUrl;
   }
-  // }
 
-  /*   async generate2FAsecret(userId: number): Promise<string> {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-    });
-    const speakeasy = require("speakeasy");
-    const qrcode = require("qrcode");
-
-    if (!user.userSecret) {
-      const secret = speakeasy.generateSecret({
-        name: "transcendance", // need to encode this
-      });
-      // Save the secret to the database associated with the user
-      user.userSecret = secret.base32;
-      // console.log(secret.base32);
-      await this.prisma.user.update({
-        where: {
-          id: userId,
-        },
-        data: {
-          userSecret: secret.base32,
-        },
-      });
-      const qrCodeUrl = await new Promise<string>((resolve, reject) => {
-        qrcode.toDataURL(secret.otpauth_url, function (err, data) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(data); // Resolve with the data URL
-          }
-        });
-      });
-      return qrCodeUrl;
-    } else {
-      const otpAuthURL = speakeasy.otpauthURL({
-        secret: user.userSecret,
-        label: "transcendance",
-      });
-
-      try {
-        const qrCodeUrl = await new Promise<string>((resolve, reject) => {
-          qrcode.toDataURL(otpAuthURL, function (err, data) {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(data); // Resolve with the data URL
-            }
-          });
-        });
-        return qrCodeUrl;
-      } catch (error) {
-        console.error(error);
-        // Gérer l'erreur ici
-      }
-    }
-  } */
-  /*--------------------------------------------------
-  // API 42 LOGIN 
--------------------------------------------------*/
-  /* async getAccessToken(code: string): Promise<string> {
-    // console.log("getAccessToken called with code:", code);
-    const clientId = process.env.CLIENT_ID;
-    const clientSecret = process.env.CLIENT_SECRET;
-    const redirectUri = process.env.REDIRECT_URI;
-    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-      "base64"
-    );
-
-    const response = await axios.post(
-      "https://api.intra.42.fr/oauth/token",
-      {
-        grant_type: "authorization_code",
-        code: code,
-        redirect_uri: redirectUri,
-      },
-      {
-        headers: {
-          Authorization: `Basic ${credentials}`,
-        },
-      }
-    );
-    return response.data.access_token;
-  }
-*/
   async getUserInfo(accessToken: string): Promise<any> {
     const response = await axios.get("https://api.intra.42.fr/v2/me", {
       headers: {
@@ -417,15 +290,14 @@ export class AuthService {
         }
       );
 
-      // Vérifiez si la réponse contient un jeton d'accès valide
       if (response.data && response.data.access_token) {
         return response.data.access_token;
       } else {
-        return null; // Renvoie null en cas de réponse invalide
+        return null;
       }
     } catch (error) {
       console.error("Erreur lors de la récupération du jeton d'accès:", error);
-      return null; // Renvoie null en cas d'erreur
+      return null;
     }
   }
 
@@ -443,13 +315,7 @@ export class AuthService {
       refresh_token: null,
     };
 
-    // console.log("Access token:", tokenResponse.access_token);
     const userInfo = await this.getUserInfo(accessToken);
-
-    // To see all infos we can use
-    //console.log("User Info from API 42:", userInfo);
-
-    // Check if user exists
     const user = await this.prisma.user.findUnique({
       where: {
         email: userInfo.email,
@@ -457,8 +323,6 @@ export class AuthService {
     });
 
     if (!user) {
-      //console.log("Need to create New User in Database");
-      // console.log(userInfo.image.versions.small);
       const newUser = await this.prisma.user.create({
         data: {
           email: userInfo.email,
@@ -474,8 +338,8 @@ export class AuthService {
       });
       const avatar = await this.prisma.avatar.create({
         data: {
-          filename: "small_student.jpg", // Nom du fichier de l'avatar
-          data: Buffer.from(userInfo.image.versions.small), // Données de l'image converties en bytes
+          filename: "small_student.jpg",
+          data: Buffer.from(userInfo.image.versions.small),
           url42: userInfo.image.versions.small,
           userId: newUser.id,
         },
@@ -504,7 +368,6 @@ export class AuthService {
       const redirectUri = process.env.REDIRECT_URI;
       const authorizationEndpoint = process.env.AUTHORIZATION_ENDPOINT;
 
-      // Construire les paramètres de requête
       const queryParams = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
@@ -512,12 +375,8 @@ export class AuthService {
         grant_type: "authorization_code",
       });
 
-      // Construire l'URL d'autorisation en ajoutant les paramètres de requête à l'endpoint d'autorisation
       const authorizationUrl = `${authorizationEndpoint}?${queryParams.toString()}`;
 
-      // Effectuer une redirection vers l'URL d'autorisation
-      // Cette partie est gérée par le contrôleur, donc nous renvoyons simplement l'URL ici
-      // console.log(authorizationUrl);
       return authorizationUrl;
     } catch (error) {
       console.error("Error during authorization:", error);
@@ -569,17 +428,14 @@ export class AuthService {
   }
 
   async getUser2FA(authorizationHeader: string): Promise<User> {
-    // User 42 API
     if (!authorizationHeader) return;
     const tokens = authorizationHeader.substring(7).split(",");
     const accessToken = tokens[0].trim();
     const refreshToken = tokens[1].trim();
-    // console.log(accessToken);
-    // console.log(refreshToken);
+
     if (refreshToken === "null") {
-      //const userInfo = await this.getUserInfo(accessToken);
       const hashToken = await this.hashData(accessToken);
-      //console.log(hashToken);
+
       const userAPI = await this.prisma.user.findUnique({
         where: {
           hashedRt: accessToken,
@@ -587,7 +443,7 @@ export class AuthService {
       });
       return userAPI;
     }
-    // User connexion classic
+
     try {
       const userPayload = await this.parseToken(authorizationHeader);
       const user = await this.prisma.user.findUnique({
@@ -603,24 +459,21 @@ export class AuthService {
   }
 
   async getMe(authorizationHeader: string): Promise<User> {
-    // User 42 API
     if (!authorizationHeader) return;
     const tokens = authorizationHeader.substring(7).split(",");
     const accessToken = tokens[0].trim();
     const refreshToken = tokens[1].trim();
-    // console.log(accessToken);
-    // console.log(refreshToken);
+
     try {
       if (refreshToken === "null") {
-        //const userInfo = await this.getUserInfo(accessToken);
         const hashToken = await this.hashData(accessToken);
-        //console.log(hashToken);
+
         const userAPI = await this.prisma.user.findUnique({
           where: {
             hashedRt: accessToken,
           },
         });
-        //console.log(userAPI);
+
         if (userAPI.isLogged) {
           return userAPI;
         } else {
@@ -630,7 +483,7 @@ export class AuthService {
     } catch (error) {
       return null;
     }
-    // User connexion classic
+
     try {
       const userPayload = await this.parseToken(authorizationHeader);
       const user = await this.prisma.user.findUnique({
@@ -662,9 +515,8 @@ export class AuthService {
   }
 
   async getTokens(userId: number, email: string): Promise<Tokens> {
-    const currentTime = Math.floor(Date.now() / 1000); // Temps actuel en secondes
-    //const expirationTime = currentTime + 600; // Durée de validité fixe de 10 min
-    const expirationTime = currentTime + 60 * 60 * 24 * 7; // Durée de validité de 1 minute
+    const currentTime = Math.floor(Date.now() / 1000);
+    const expirationTime = currentTime + 60 * 60 * 24 * 7;
 
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(
@@ -684,7 +536,7 @@ export class AuthService {
         },
         {
           secret: process.env.RT_SECRET,
-          expiresIn: 60 * 60 * 24 * 7, // must have something like a week
+          expiresIn: 60 * 60 * 24 * 7,
         }
       ),
     ]);
@@ -696,7 +548,6 @@ export class AuthService {
 
   async parseToken(authorizationHeader: string): Promise<JwtPayload> {
     if (!authorizationHeader) return;
-    //console.log(authorizationHeader);
     const tokens = authorizationHeader.substring(7).split(",");
     const accessToken = tokens[0].trim();
 
